@@ -2,24 +2,50 @@
 
 import { useState } from 'react';
 import { useStore } from '@/lib/store';
-import { Settings, Plus, Users, Calendar, Bell, DollarSign } from 'lucide-react';
+import { Settings, Plus, Users, Calendar, Bell, DollarSign, UserCog, Save } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export default function AdminPage() {
-  const [activeTab, setActiveTab] = useState<'members' | 'events' | 'contributions' | 'announcements'>('members');
+  const [activeTab, setActiveTab] = useState<'members' | 'edit-member' | 'events' | 'contributions' | 'announcements'>('members');
   
-  const { addMember, addEvent, addContribution, addAnnouncement, members, events } = useStore();
+  const { addMember, updateMember, addEvent, addContribution, addAnnouncement, members, events } = useStore();
 
   const [memberForm, setMemberForm] = useState({ name: '', email: '', phone: '', joinDate: new Date().toISOString().split('T')[0] });
   const [eventForm, setEventForm] = useState({ title: '', description: '', date: new Date().toISOString().split('T')[0], type: 'project' as any, isActive: true, requiresContribution: false, targetAmount: '' });
   const [contributionForm, setContributionForm] = useState({ memberId: '', eventId: '', amount: '', date: new Date().toISOString().split('T')[0] });
   const [announcementForm, setAnnouncementForm] = useState({ title: '', content: '', date: new Date().toISOString().split('T')[0] });
 
+  const [selectedMemberId, setSelectedMemberId] = useState('');
+  const [editMemberForm, setEditMemberForm] = useState({ name: '', email: '', phone: '', joinDate: '', profilePicture: '' });
+
   const handleAddMember = (e: React.FormEvent) => {
     e.preventDefault();
     addMember(memberForm);
     setMemberForm({ name: '', email: '', phone: '', joinDate: new Date().toISOString().split('T')[0] });
     alert('Member added successfully!');
+  };
+
+  const handleSelectMemberToEdit = (id: string) => {
+    setSelectedMemberId(id);
+    const member = members.find(m => m.id === id);
+    if (member) {
+      setEditMemberForm({
+        name: member.name,
+        email: member.email,
+        phone: member.phone || '',
+        joinDate: member.joinDate,
+        profilePicture: member.profilePicture || ''
+      });
+    }
+  };
+
+  const handleUpdateMember = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!selectedMemberId) return;
+    updateMember(selectedMemberId, editMemberForm);
+    alert('Member updated successfully!');
+    setSelectedMemberId('');
+    setEditMemberForm({ name: '', email: '', phone: '', joinDate: '', profilePicture: '' });
   };
 
   const handleAddEvent = (e: React.FormEvent) => {
@@ -58,6 +84,7 @@ export default function AdminPage() {
 
   const tabs = [
     { id: 'members', label: 'Add Member', icon: Users },
+    { id: 'edit-member', label: 'Edit Member', icon: UserCog },
     { id: 'events', label: 'Create Event/Project', icon: Calendar },
     { id: 'contributions', label: 'Record Contribution', icon: DollarSign },
     { id: 'announcements', label: 'Post Announcement', icon: Bell },
@@ -125,6 +152,57 @@ export default function AdminPage() {
                 <Plus className="w-5 h-5" /> Add Member
               </button>
             </form>
+          )}
+
+          {activeTab === 'edit-member' && (
+            <div className="space-y-6 max-w-2xl">
+              <h2 className="text-2xl font-bold text-stone-900 mb-6">Edit Existing Member</h2>
+              
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-stone-700">Select Member</label>
+                <select 
+                  value={selectedMemberId} 
+                  onChange={e => handleSelectMemberToEdit(e.target.value)} 
+                  className="w-full p-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all bg-white"
+                >
+                  <option value="">-- Select a member to edit --</option>
+                  {members.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
+                </select>
+              </div>
+
+              {selectedMemberId && (
+                <form onSubmit={handleUpdateMember} className="space-y-6 pt-4 border-t border-stone-100">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-stone-700">Full Name</label>
+                      <input required type="text" value={editMemberForm.name} onChange={e => setEditMemberForm({...editMemberForm, name: e.target.value})} className="w-full p-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-stone-700">Email Address</label>
+                      <input required type="email" value={editMemberForm.email} onChange={e => setEditMemberForm({...editMemberForm, email: e.target.value})} className="w-full p-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-stone-700">Phone Number</label>
+                      <input type="tel" value={editMemberForm.phone} onChange={e => setEditMemberForm({...editMemberForm, phone: e.target.value})} className="w-full p-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-stone-700">Join Date</label>
+                      <input required type="date" value={editMemberForm.joinDate} onChange={e => setEditMemberForm({...editMemberForm, joinDate: e.target.value})} className="w-full p-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all" />
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <label className="text-sm font-medium text-stone-700">Profile Picture URL</label>
+                    <input type="url" placeholder="https://example.com/photo.jpg" value={editMemberForm.profilePicture} onChange={e => setEditMemberForm({...editMemberForm, profilePicture: e.target.value})} className="w-full p-3 border border-stone-300 rounded-xl focus:ring-2 focus:ring-emerald-500 focus:border-emerald-500 outline-none transition-all" />
+                    <p className="text-xs text-stone-500">Provide a direct link to an image (e.g., from an image hosting service).</p>
+                  </div>
+                  
+                  <button type="submit" className="w-full md:w-auto px-8 py-3 bg-emerald-700 text-white rounded-xl font-bold hover:bg-emerald-800 transition-colors flex items-center justify-center gap-2">
+                    <Save className="w-5 h-5" /> Save Changes
+                  </button>
+                </form>
+              )}
+            </div>
           )}
 
           {activeTab === 'events' && (
